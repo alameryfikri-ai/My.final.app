@@ -1,0 +1,982 @@
+<!DOCTYPE html>
+<html lang="ar" dir="rtl">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>منصة نبض للرعاية الذكية الموحدة | Nabd Smart Care Unified Single File</title>
+  
+  <!-- Tailwind CSS Play CDN -->
+  <script src="https://cdn.tailwindcss.com"></script>
+  
+  <!-- Lucide Icons CDN -->
+  <script src="https://unpkg.com/lucide@latest"></script>
+  
+  <!-- Alpine.js for lightweight, bulletproof reactive state management -->
+  <script defer src="https://unpkg.com/alpinejs@3.x.x/dist/cdn.min.js"></script>
+
+  <!-- Google Fonts -->
+  <link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700&family=Cairo:wght@300;400;500;600;700;800&family=JetBrains+Mono:wght@400;500&display=swap" rel="stylesheet">
+
+  <style>
+    /* Custom Scrollbar */
+    ::-webkit-scrollbar {
+      width: 6px;
+      height: 6px;
+    }
+    ::-webkit-scrollbar-track {
+      background: #0f172a;
+    }
+    ::-webkit-scrollbar-thumb {
+      background: #1e293b;
+      border-radius: 3px;
+    }
+    ::-webkit-scrollbar-thumb:hover {
+      background: #06b6d4;
+    }
+    
+    /* Font Declarations matching English/Arabic moods */
+    .font-cairo { font-family: 'Cairo', sans-serif; }
+    .font-sans { font-family: 'Inter', sans-serif; }
+    .font-mono { font-family: 'JetBrains Mono', monospace; }
+
+    [x-cloak] { display: none !important; }
+  </style>
+
+  <script>
+    // Tailwind Config customization for medical theme
+    tailwind.config = {
+      darkMode: 'class',
+      theme: {
+        extend: {
+          colors: {
+            slate: {
+              850: '#111b2e',
+              900: '#0f172a',
+              950: '#070b19',
+            },
+          }
+        }
+      }
+    }
+  </script>
+</head>
+<body class="bg-slate-950 text-slate-100 min-h-screen font-cairo antialiased selection:bg-cyan-500 selection:text-slate-950 overflow-x-hidden"
+      x-data="nabdApp()" x-init="initApp()">
+
+  <!-- 1. BIOMETRIC LOCK SCREEN / WEBAUTHN SIMULATION OVERLAY -->
+  <template x-if="showLockScreen">
+    <div class="fixed inset-0 bg-slate-950 z-50 flex flex-col items-center justify-center p-4 overflow-y-auto">
+      
+      <!-- Background Ambient Glows -->
+      <div class="absolute top-1/4 left-1/4 w-96 h-96 bg-cyan-500/10 rounded-full blur-3xl -z-10 animate-pulse"></div>
+      <div class="absolute bottom-1/4 right-1/4 w-96 h-96 bg-rose-500/5 rounded-full blur-3xl -z-10"></div>
+
+      <!-- Top Header -->
+      <div class="text-center space-y-2 mb-8">
+        <div class="inline-flex items-center gap-2 px-3 py-1 bg-slate-900 border border-slate-800 rounded-full text-xs text-slate-400">
+          <span class="w-2 h-2 rounded-full bg-emerald-500 animate-ping"></span>
+          <span class="font-mono text-[10px]" x-text="getCurrentTime()"></span>
+        </div>
+        <h1 class="text-3xl font-extrabold tracking-tight bg-gradient-to-r from-cyan-400 via-teal-400 to-blue-500 bg-clip-text text-transparent">
+          منصة نـبـض للرعاية الذكية
+        </h1>
+        <p class="text-xs text-slate-400 max-w-sm mx-auto leading-relaxed font-sans" x-text="lang === 'ar' ? 'نظام دعم القرار الطبي المتكامل وأدوات الإنذار المبكر الذكية' : 'Integrated Clinical Decision Support & Intelligent Early Warning System'">
+        </p>
+      </div>
+
+      <!-- Card Core -->
+      <div class="w-full max-w-md bg-slate-900 border border-slate-800 rounded-3xl p-6 shadow-2xl space-y-6 relative overflow-hidden">
+        
+        <!-- Header status -->
+        <div class="flex justify-between items-center border-b border-slate-800/60 pb-4">
+          <div class="flex items-center gap-2">
+            <div class="w-10 h-10 rounded-xl bg-slate-950 flex items-center justify-center border border-slate-800 text-cyan-400 shadow-inner">
+              <i data-lucide="shield-check" class="w-5 h-5"></i>
+            </div>
+            <div>
+              <p class="text-xs font-bold text-slate-200" x-text="lang === 'ar' ? 'بوابة الكادر الطبي الآمنة' : 'Secure Clinician Gateway'"></p>
+              <p class="text-[9.5px] text-slate-500" x-text="lang === 'ar' ? 'تشفر محلي بالكامل' : '100% Locally Encrypted'"></p>
+            </div>
+          </div>
+          
+          <!-- Language Toggle Button -->
+          <button @click="toggleLanguage()" class="px-3 py-1 rounded-lg bg-slate-950 hover:bg-slate-800 border border-slate-800 text-[10px] font-bold text-cyan-400 transition-colors">
+            <span x-text="lang === 'ar' ? 'English' : 'العربية'"></span>
+          </button>
+        </div>
+
+        <div class="text-center space-y-2">
+          <h2 class="text-base font-bold text-slate-100" x-text="lang === 'ar' ? 'يرجى تأكيد الهوية للدخول' : 'Identity Verification Required'"></h2>
+          <p class="text-[11px] text-slate-400 leading-normal px-4" x-text="lang === 'ar' ? 'ضع إصبعك على المستشعر للمصادقة السريعة عبر البصمة الحيوية لجهازك أو استخدم رمز الدخول السريع' : 'Scan fingerprint via device secure WebAuthn biometrics or enter clinical security PIN'">
+          </p>
+        </div>
+
+        <!-- FINGERPRINT SENSOR PORTAL -->
+        <div class="flex flex-col items-center justify-center py-4 space-y-4">
+          <button @click="triggerBiometricScan()" 
+                  class="w-28 x-28 h-28 rounded-full bg-slate-950 flex flex-col items-center justify-center border-2 transition-all relative overflow-hidden group shadow-2xl cursor-pointer"
+                  :class="isScanning ? 'border-cyan-500 scale-95 shadow-cyan-950/40' : 'border-slate-800 hover:border-slate-700'">
+            
+            <!-- Scanning Laser line -->
+            <div x-show="isScanning" class="absolute left-0 right-0 h-1 bg-cyan-400 top-0 shadow-[0_0_15px_#22d3ee] animate-bounce"></div>
+
+            <i data-lucide="fingerprint" class="w-14 h-14 transition-all"
+               :class="isScanning ? 'text-cyan-400 scale-105' : 'text-slate-500 group-hover:text-slate-300'"></i>
+          </button>
+
+          <div class="text-center space-y-1">
+            <span class="text-xs font-bold tracking-wider" 
+                  :class="isScanning ? 'text-cyan-400 font-mono animate-pulse' : 'text-slate-400'"
+                  x-text="isScanning ? (lang === 'ar' ? `جاري القراءة والمطابقة... ${scanProgress}%` : `Matching biometrics... ${scanProgress}%`) : (lang === 'ar' ? 'اضغط للمصادقة عبر البصمة الموحدة' : 'Tap to authenticate biometrics')">
+            </span>
+            <p class="text-[9.5px] text-slate-500" x-text="hasWebAuthnCreds ? (lang === 'ar' ? 'تم الكشف عن بصمة جهاز معتمدة (WebAuthn)' : 'Enrolled WebAuthn Hardware Profile active') : (lang === 'ar' ? 'المستشعر الذكي جاهز للاستخدام' : 'Smart virtual biometric sensor ready')"></p>
+          </div>
+        </div>
+
+        <!-- OR Divider -->
+        <div class="flex items-center gap-2 justify-center text-slate-600 text-[10px]">
+          <span class="h-px bg-slate-800 flex-1"></span>
+          <span x-text="lang === 'ar' ? 'أو أدخل الرمز التعريفي' : 'OR ENTER CLINICAL PIN'"></span>
+          <span class="h-px bg-slate-800 flex-1"></span>
+        </div>
+
+        <!-- PIN INPUT GRID -->
+        <div class="space-y-4">
+          <!-- Pin Code Visual indicators -->
+          <div class="flex justify-center gap-3">
+            <template x-for="i in 4">
+              <div class="w-3.5 h-3.5 rounded-full transition-all border"
+                   :class="pinInput.length >= i ? 'bg-cyan-400 border-cyan-400 scale-110 shadow-[0_0_8px_#22d3ee]' : (pinError ? 'bg-rose-500 border-rose-500 animate-shake' : 'bg-slate-950 border-slate-800')">
+              </div>
+            </template>
+          </div>
+          
+          <p x-show="pinError" class="text-[10px] text-rose-400 text-center font-bold" x-text="lang === 'ar' ? 'رمز مرور خاطئ! حاول مجدداً' : 'Incorrect PIN! Please try again'"></p>
+
+          <!-- Virtual Numeric Keyboard -->
+          <div class="grid grid-cols-3 gap-2 max-w-[260px] mx-auto">
+            <template x-for="num in ['1', '2', '3', '4', '5', '6', '7', '8', '9']">
+              <button @click="pressPin(num)" class="py-2 rounded-xl bg-slate-950 hover:bg-slate-800 border border-slate-850 text-slate-200 text-sm font-bold active:scale-95 transition-all">
+                <span x-text="num"></span>
+              </button>
+            </template>
+            <button @click="clearPin()" class="py-2 rounded-xl bg-slate-950 hover:bg-rose-950/40 border border-slate-850 text-rose-400 text-xs font-bold active:scale-95 transition-all">
+              <span x-text="lang === 'ar' ? 'مسح' : 'CLR'"></span>
+            </button>
+            <button @click="pressPin('0')" class="py-2 rounded-xl bg-slate-950 hover:bg-slate-800 border border-slate-850 text-slate-200 text-sm font-bold active:scale-95 transition-all">
+              <span>0</span>
+            </button>
+            <button @click="backspacePin()" class="py-2 rounded-xl bg-slate-950 hover:bg-slate-850 border border-slate-850 text-slate-400 text-sm font-bold flex items-center justify-center active:scale-95 transition-all">
+              <i data-lucide="delete" class="w-4 h-4"></i>
+            </button>
+          </div>
+        </div>
+
+        <!-- WEBAUTHN CONSOLE LOGS -->
+        <div x-show="webAuthnLogs.length > 0" class="p-3 bg-slate-950 border border-slate-850 rounded-xl space-y-1 max-h-24 overflow-y-auto font-mono text-[8.5px] text-cyan-400 scrollbar-thin">
+          <div class="flex justify-between border-b border-slate-900 pb-1 mb-1 text-slate-500 text-[7.5px] font-bold">
+            <span>WEBAUTHN ENCLAVE SESSION</span>
+            <span>ACTIVE LOGS</span>
+          </div>
+          <template x-for="log in webAuthnLogs">
+            <div class="leading-tight text-left" x-text="log"></div>
+          </template>
+        </div>
+
+        <!-- Footer Clinician Identity -->
+        <div class="pt-4 border-t border-slate-800/50 flex justify-between items-center text-[10px] text-slate-400">
+          <span x-text="lang === 'ar' ? 'الطبيب المكتشف افتراضياً:' : 'Auto-detected Clinician:'"></span>
+          <span class="font-bold text-cyan-400" x-text="lang === 'ar' ? activeClinician.nameAr : activeClinician.nameEn"></span>
+        </div>
+
+      </div>
+    </div>
+  </template>
+
+  <!-- 2. MAIN APPLICATION WORKSPACE -->
+  <template x-if="!showLockScreen">
+    <div class="flex h-screen overflow-hidden">
+      
+      <!-- SIDEBAR -->
+      <aside class="w-64 bg-slate-900 border-l border-slate-800 flex flex-col h-full shrink-0 z-20">
+        
+        <!-- Hospital Branding Header -->
+        <div class="p-5 border-b border-slate-800/80 space-y-2">
+          <div class="flex items-center gap-2">
+            <div class="w-8 h-8 rounded-lg bg-cyan-600/20 border border-cyan-500/30 flex items-center justify-center text-cyan-400 animate-pulse">
+              <i data-lucide="activity" class="w-4 h-4"></i>
+            </div>
+            <div>
+              <h2 class="text-sm font-extrabold text-slate-100" x-text="lang === 'ar' ? 'مستشفى الشفاء التخصصي' : 'Al-Shifa Specialty Hospital'"></h2>
+              <p class="text-[9.5px] text-slate-400" x-text="lang === 'ar' ? 'قسم الطوارئ والقلب والـ ICU' : 'Emergency & ICU Core'"></p>
+            </div>
+          </div>
+        </div>
+
+        <!-- Navigation items -->
+        <nav class="flex-1 p-3 space-y-1.5 overflow-y-auto">
+          <button @click="currentTab = 'DASHBOARD'" 
+                  class="w-full flex items-center gap-3 px-4 py-2.5 rounded-xl transition-all text-xs font-bold"
+                  :class="currentTab === 'DASHBOARD' ? 'bg-cyan-600/20 text-cyan-400 border border-cyan-500/20' : 'text-slate-400 hover:bg-slate-850 hover:text-slate-200'">
+            <i data-lucide="layout-dashboard" class="w-4 h-4"></i>
+            <span x-text="lang === 'ar' ? 'لوحة المراقبة الرئيسية' : 'Clinical Dashboard'"></span>
+          </button>
+
+          <button @click="currentTab = 'PATIENTS_LIST'" 
+                  class="w-full flex items-center gap-3 px-4 py-2.5 rounded-xl transition-all text-xs font-bold"
+                  :class="currentTab === 'PATIENTS_LIST' ? 'bg-cyan-600/20 text-cyan-400 border border-cyan-500/20' : 'text-slate-400 hover:bg-slate-850 hover:text-slate-200'">
+            <i data-lucide="users" class="w-4 h-4"></i>
+            <span x-text="lang === 'ar' ? 'سجلات المرضى النشطين' : 'Active Patient Records'"></span>
+          </button>
+
+          <button @click="currentTab = 'ADD_PATIENT'" 
+                  class="w-full flex items-center gap-3 px-4 py-2.5 rounded-xl transition-all text-xs font-bold"
+                  :class="currentTab === 'ADD_PATIENT' ? 'bg-cyan-600/20 text-cyan-400 border border-cyan-500/20' : 'text-slate-400 hover:bg-slate-850 hover:text-slate-200'">
+            <i data-lucide="user-plus" class="w-4 h-4"></i>
+            <span x-text="lang === 'ar' ? 'تسجيل مريض / مؤشرات NEWS2' : 'New Patient Vital Intake'"></span>
+          </button>
+
+          <button @click="currentTab = 'AI_COACH'" 
+                  class="w-full flex items-center gap-3 px-4 py-2.5 rounded-xl transition-all text-xs font-bold"
+                  :class="currentTab === 'AI_COACH' ? 'bg-cyan-600/20 text-cyan-400 border border-cyan-500/20' : 'text-slate-400 hover:bg-slate-850 hover:text-slate-200'">
+            <i data-lucide="bot" class="w-4 h-4"></i>
+            <span x-text="lang === 'ar' ? 'مساعد الدعم السريري الذكي' : 'AI Clinical Decision Assistant'"></span>
+          </button>
+
+          <button @click="currentTab = 'SETTINGS'" 
+                  class="w-full flex items-center gap-3 px-4 py-2.5 rounded-xl transition-all text-xs font-bold"
+                  :class="currentTab === 'SETTINGS' ? 'bg-cyan-600/20 text-cyan-400 border border-cyan-500/20' : 'text-slate-400 hover:bg-slate-850 hover:text-slate-200'">
+            <i data-lucide="settings" class="w-4 h-4"></i>
+            <span x-text="lang === 'ar' ? 'إعدادات الحماية وWebAuthn' : 'Security & WebAuthn Setup'"></span>
+          </button>
+        </nav>
+
+        <!-- Logged Clinician Footer -->
+        <div class="p-4 border-t border-slate-800 bg-slate-950/60 space-y-3">
+          <div class="flex items-center gap-2.5">
+            <div class="w-8 h-8 rounded-full bg-slate-800 flex items-center justify-center text-slate-300 font-bold border border-slate-700 text-xs">
+              FP
+            </div>
+            <div>
+              <p class="text-xs font-bold text-slate-200" x-text="lang === 'ar' ? activeClinician.nameAr : activeClinician.nameEn"></p>
+              <p class="text-[9px] text-cyan-500 font-mono" x-text="lang === 'ar' ? activeClinician.roleAr : activeClinician.roleEn"></p>
+            </div>
+          </div>
+          <button @click="lockApplication()" class="w-full py-1.5 rounded-lg border border-slate-800 bg-slate-900 hover:bg-rose-950/30 hover:border-rose-900/40 text-[10px] text-slate-400 hover:text-rose-400 font-bold flex items-center justify-center gap-1.5 transition-all">
+            <i data-lucide="lock" class="w-3.5 h-3.5"></i>
+            <span x-text="lang === 'ar' ? 'إغلاق الجلسة وتأمين المحطة' : 'Lock Clinic Workstation'"></span>
+          </button>
+        </div>
+
+      </aside>
+
+      <!-- VIEW WORKSPACE -->
+      <main class="flex-1 bg-slate-950 flex flex-col h-full overflow-hidden">
+        
+        <!-- Top App Bar / Global Search, Language Toggle -->
+        <header class="h-14 bg-slate-900 border-b border-slate-800/80 flex items-center justify-between px-6 z-10">
+          <div class="flex items-center gap-4">
+            <h1 class="text-base font-extrabold text-slate-100 flex items-center gap-2">
+              <span x-show="currentTab === 'DASHBOARD'" x-text="lang === 'ar' ? 'لوحة المراقبة الرئيسية' : 'Clinical Dashboard'"></span>
+              <span x-show="currentTab === 'PATIENTS_LIST'" x-text="lang === 'ar' ? 'سجلات المرضى النشطين' : 'Active Patient Records'"></span>
+              <span x-show="currentTab === 'ADD_PATIENT'" x-text="lang === 'ar' ? 'تسجيل مريض جديد' : 'New Patient Vital Intake'"></span>
+              <span x-show="currentTab === 'AI_COACH'" x-text="lang === 'ar' ? 'مساعد الدعم السريري الذكي' : 'AI Clinical Assistant'"></span>
+              <span x-show="currentTab === 'SETTINGS'" x-text="lang === 'ar' ? 'إعدادات الحماية والقياسات الحيوية' : 'Security & Biometrics Settings'"></span>
+            </h1>
+          </div>
+
+          <div class="flex items-center gap-3">
+            <!-- Language Quick Switch -->
+            <button @click="toggleLanguage()" class="px-3 py-1.5 rounded-xl bg-slate-950 border border-slate-850 hover:bg-slate-800 text-xs font-bold text-cyan-400 flex items-center gap-1.5 transition-colors">
+              <i data-lucide="languages" class="w-3.5 h-3.5"></i>
+              <span x-text="lang === 'ar' ? 'English' : 'العربية'"></span>
+            </button>
+
+            <!-- Active Security Badge -->
+            <div class="flex items-center gap-1.5 px-3 py-1 bg-cyan-950/40 border border-cyan-850 rounded-xl">
+              <span class="w-1.5 h-1.5 bg-cyan-400 rounded-full animate-pulse"></span>
+              <span class="text-[9.5px] font-bold text-cyan-400 font-mono">SECURE HUB</span>
+            </div>
+          </div>
+        </header>
+
+        <!-- PRIMARY SCROLLABLE TAB CONTAINER -->
+        <div class="flex-1 overflow-y-auto p-6 space-y-6">
+          
+          <!-- TAB 1: CLINICAL DASHBOARD -->
+          <div x-show="currentTab === 'DASHBOARD'" class="space-y-6" x-cloak>
+            
+            <!-- Quick Cards Grid -->
+            <div class="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4">
+              <!-- Registered Patients -->
+              <div class="bg-slate-900 border border-slate-850 rounded-2xl p-4 flex items-center justify-between relative overflow-hidden group">
+                <div class="space-y-1">
+                  <span class="text-[10px] font-bold text-slate-400" x-text="lang === 'ar' ? 'إجمالي الحالات النشطة' : 'Total Active Cases'"></span>
+                  <p class="text-3xl font-extrabold text-slate-100" x-text="patients.length"></p>
+                </div>
+                <div class="w-10 h-10 rounded-xl bg-cyan-950 text-cyan-400 flex items-center justify-center border border-cyan-900/30">
+                  <i data-lucide="users" class="w-5 h-5"></i>
+                </div>
+              </div>
+
+              <!-- High Risk Flags -->
+              <div class="bg-slate-900 border border-slate-850 rounded-2xl p-4 flex items-center justify-between relative overflow-hidden group">
+                <div class="space-y-1">
+                  <span class="text-[10px] font-bold text-rose-400" x-text="lang === 'ar' ? 'حالات حرجة (NEWS2 ≥ 7)' : 'Critical Alerts (NEWS2 ≥ 7)'"></span>
+                  <p class="text-3xl font-extrabold text-rose-400" x-text="patients.filter(p => p.NEWS2Score >= 7).length"></p>
+                </div>
+                <div class="w-10 h-10 rounded-xl bg-rose-950 text-rose-400 flex items-center justify-center border border-rose-900/30 animate-pulse">
+                  <i data-lucide="alert-triangle" class="w-5 h-5"></i>
+                </div>
+              </div>
+
+              <!-- Average NEWS2 -->
+              <div class="bg-slate-900 border border-slate-850 rounded-2xl p-4 flex items-center justify-between relative overflow-hidden group">
+                <div class="space-y-1">
+                  <span class="text-[10px] font-bold text-yellow-400" x-text="lang === 'ar' ? 'متوسط قيمة الإنذار المبكر' : 'Average NEWS2 Score'"></span>
+                  <p class="text-3xl font-extrabold text-yellow-400" x-text="getAverageNews2()"></p>
+                </div>
+                <div class="w-10 h-10 rounded-xl bg-yellow-950 text-yellow-400 flex items-center justify-center border border-yellow-900/30">
+                  <i data-lucide="activity" class="w-5 h-5"></i>
+                </div>
+              </div>
+
+              <!-- WebAuthn Device Biometrics Active badge -->
+              <div class="bg-slate-900 border border-slate-850 rounded-2xl p-4 flex items-center justify-between relative overflow-hidden group">
+                <div class="space-y-1">
+                  <span class="text-[10px] font-bold text-emerald-400" x-text="lang === 'ar' ? 'حالة التوثيق البيومتري لجهازك' : 'Device WebAuthn Status'"></span>
+                  <p class="text-base font-extrabold text-emerald-400 mt-2" x-text="hasWebAuthnCreds ? (lang === 'ar' ? 'مؤمن بالبصمة' : 'Biometric Locked') : (lang === 'ar' ? 'غير مسجل' : 'Not Registered')"></p>
+                </div>
+                <div class="w-10 h-10 rounded-xl bg-emerald-950 text-emerald-400 flex items-center justify-center border border-emerald-900/30">
+                  <i data-lucide="fingerprint" class="w-5 h-5"></i>
+                </div>
+              </div>
+            </div>
+
+            <!-- Primary Division: Critical Alerts List and Emergency Guidance -->
+            <div class="grid grid-cols-1 lg:grid-cols-3 gap-6">
+              
+              <!-- Left side: Critical Patient Alerts -->
+              <div class="lg:col-span-2 bg-slate-900 border border-slate-850 rounded-2xl p-5 space-y-4">
+                <div class="flex justify-between items-center">
+                  <h3 class="text-sm font-extrabold text-slate-100 flex items-center gap-2">
+                    <span class="w-2 h-2 bg-rose-500 rounded-full animate-ping"></span>
+                    <span x-text="lang === 'ar' ? 'سلسلة الإنذار المبكر للمستشفى والتدخل السريع' : 'Active Clinical Red Flags / Early Warning'"></span>
+                  </h3>
+                  <button @click="currentTab = 'PATIENTS_LIST'" class="text-[10.5px] font-bold text-cyan-400 hover:underline" x-text="lang === 'ar' ? 'عرض كافة المرضى' : 'View all active records'"></button>
+                </div>
+
+                <div class="space-y-3">
+                  <template x-for="pat in patients.filter(p => p.NEWS2Score >= 5)">
+                    <div class="p-3 bg-slate-950 border border-slate-850 rounded-xl flex flex-col sm:flex-row justify-between items-start sm:items-center gap-3 transition-transform hover:scale-[1.01]">
+                      <div class="space-y-1">
+                        <div class="flex items-center gap-2">
+                          <span class="text-xs font-bold text-slate-200" x-text="pat.Name"></span>
+                          <span class="text-[8px] font-mono px-1.5 py-0.5 rounded bg-slate-900 text-slate-400" x-text="pat.MedicalRecordNumber"></span>
+                        </div>
+                        <p class="text-[10.5px] text-slate-400">
+                          <span class="font-bold text-cyan-500" x-text="pat.Department"></span> | 
+                          <span x-text="pat.Symptoms"></span>
+                        </p>
+                      </div>
+
+                      <div class="flex items-center gap-2.5 shrink-0 self-end sm:self-center">
+                        <div class="text-right">
+                          <p class="text-[9px] text-slate-500" x-text="lang === 'ar' ? 'قيمة الإنذار' : 'NEWS2 SCORE'"></p>
+                          <p class="text-sm font-extrabold text-rose-500" x-text="pat.NEWS2Score"></p>
+                        </div>
+                        <div class="px-2 py-1 rounded text-[9px] font-bold" 
+                             :class="pat.NEWS2Score >= 7 ? 'bg-rose-950/60 text-rose-400 border border-rose-900/40' : 'bg-yellow-950/60 text-yellow-400 border border-yellow-900/40'"
+                             x-text="pat.RiskLevel">
+                        </div>
+                      </div>
+                    </div>
+                  </template>
+
+                  <template x-if="patients.filter(p => p.NEWS2Score >= 5).length === 0">
+                    <p class="text-xs text-slate-500 text-center py-6" x-text="lang === 'ar' ? 'لا يوجد حالات خطرة أو حرجة حالياً بالمرصد.' : 'No high or medium risk early warnings detected in this workspace.'"></p>
+                  </template>
+                </div>
+              </div>
+
+              <!-- Right side: Emergency protocols & Clinical AI summary card -->
+              <div class="bg-gradient-to-b from-slate-900 to-slate-950 border border-slate-850 rounded-2xl p-5 space-y-4">
+                <h3 class="text-sm font-extrabold text-slate-100 flex items-center gap-2">
+                  <i data-lucide="shield-alert" class="w-4 h-4 text-cyan-400"></i>
+                  <span x-text="lang === 'ar' ? 'بروتوكول الاستجابة والمحاكاة' : 'Emergency Clinical Protocol'"></span>
+                </h3>
+
+                <p class="text-xs text-slate-400 leading-relaxed" x-text="lang === 'ar' ? 'تعتمد هذه المنصة على دمج معايير الإنذار المبكر الوطنية البريطانية (NEWS2) لتقييم التدهور السريري الحاد وتوفير دعم طبي فوري.' : 'Integrates UK Royal College of Physicians early warning (NEWS2) clinical matrices to analyze acute physiological deterioration.'">
+                </p>
+
+                <!-- Step-by-step checklist -->
+                <div class="space-y-2.5 pt-2">
+                  <div class="flex items-start gap-2 text-[11px] text-slate-300">
+                    <span class="w-4 h-4 rounded bg-cyan-950 text-cyan-400 font-bold flex items-center justify-center shrink-0">1</span>
+                    <span x-text="lang === 'ar' ? 'تأمين المحطة بالكامل وحساب الطبيب ببصمة WebAuthn المعززة.' : 'Lock workstation with hardware WebAuthn credentials.'"></span>
+                  </div>
+                  <div class="flex items-start gap-2 text-[11px] text-slate-300">
+                    <span class="w-4 h-4 rounded bg-cyan-950 text-cyan-400 font-bold flex items-center justify-center shrink-0">2</span>
+                    <span x-text="lang === 'ar' ? 'إدخال العلامات الفسيولوجية الـ 7 للمريض لحساب قيمة الخطورة.' : 'Input 7 physiological vitals to trigger NEWS2 warning scoring.'"></span>
+                  </div>
+                  <div class="flex items-start gap-2 text-[11px] text-slate-300">
+                    <span class="w-4 h-4 rounded bg-cyan-950 text-cyan-400 font-bold flex items-center justify-center shrink-0">3</span>
+                    <span x-text="lang === 'ar' ? 'استخدام مساعد دعم القرار للذكاء الاصطناعي لتفسير الأشعة.' : 'Leverage Clinical AI decision hub to interpret ECG, CT or MRI scans.'"></span>
+                  </div>
+                </div>
+
+                <div class="pt-2">
+                  <button @click="currentTab = 'ADD_PATIENT'" class="w-full py-2.5 bg-cyan-600 hover:bg-cyan-500 text-slate-100 rounded-xl text-xs font-bold cursor-pointer transition-colors flex items-center justify-center gap-2">
+                    <i data-lucide="plus-circle" class="w-4 h-4"></i>
+                    <span x-text="lang === 'ar' ? 'إضافة وقياس علامات حيوية' : 'New Vital Signs Assessment'"></span>
+                  </button>
+                </div>
+              </div>
+
+            </div>
+
+          </div>
+
+          <!-- TAB 2: PATIENTS LIST -->
+          <div x-show="currentTab === 'PATIENTS_LIST'" class="space-y-6" x-cloak>
+            
+            <!-- Filters and Search bar -->
+            <div class="flex flex-col md:flex-row justify-between gap-4 items-center bg-slate-900 border border-slate-850 p-4 rounded-2xl">
+              <div class="w-full md:max-w-xs relative">
+                <input type="text" x-model="searchQuery" 
+                       :placeholder="lang === 'ar' ? 'ابحث باسم المريض أو الـ MRN...' : 'Search by name or MRN...'" 
+                       class="w-full bg-slate-950 border border-slate-850 rounded-xl py-1.5 px-3 pr-8 text-xs text-slate-200 outline-none focus:border-cyan-500 transition-colors" />
+                <i data-lucide="search" class="w-4 h-4 text-slate-500 absolute right-2.5 top-2"></i>
+              </div>
+
+              <!-- Filter tabs -->
+              <div class="flex items-center gap-2 overflow-x-auto w-full md:w-auto justify-end">
+                <button @click="departmentFilter = 'ALL'" 
+                        class="px-3 py-1.5 rounded-lg text-xs font-bold transition-all border"
+                        :class="departmentFilter === 'ALL' ? 'bg-cyan-600/20 text-cyan-400 border-cyan-500/20' : 'text-slate-400 bg-slate-950 border-slate-850 hover:bg-slate-900'">
+                  <span x-text="lang === 'ar' ? 'الكل' : 'All Departments'"></span>
+                </button>
+                <button @click="departmentFilter = 'Emergency'" 
+                        class="px-3 py-1.5 rounded-lg text-xs font-bold transition-all border"
+                        :class="departmentFilter === 'Emergency' ? 'bg-cyan-600/20 text-cyan-400 border-cyan-500/20' : 'text-slate-400 bg-slate-950 border-slate-850 hover:bg-slate-900'">
+                  <span x-text="lang === 'ar' ? 'الطوارئ' : 'Emergency'"></span>
+                </button>
+                <button @click="departmentFilter = 'ICU'" 
+                        class="px-3 py-1.5 rounded-lg text-xs font-bold transition-all border"
+                        :class="departmentFilter === 'ICU' ? 'bg-cyan-600/20 text-cyan-400 border-cyan-500/20' : 'text-slate-400 bg-slate-950 border-slate-850 hover:bg-slate-900'">
+                  <span x-text="lang === 'ar' ? 'العناية المركزة' : 'ICU'"></span>
+                </button>
+              </div>
+            </div>
+
+            <!-- List Grid -->
+            <div class="grid grid-cols-1 md:grid-cols-2 gap-4">
+              <template x-for="pat in filteredPatients()">
+                <div class="bg-slate-900 border border-slate-850 rounded-2xl p-5 space-y-4 hover:border-slate-700 transition-all cursor-pointer relative overflow-hidden"
+                     @click="selectedPatient = pat">
+                  
+                  <!-- Top line: Name, MRN and NEWS2 score -->
+                  <div class="flex justify-between items-start">
+                    <div class="space-y-1">
+                      <h4 class="text-sm font-bold text-slate-100" x-text="pat.Name"></h4>
+                      <div class="flex items-center gap-2">
+                        <span class="text-[9.5px] text-slate-500 font-mono" x-text="pat.MedicalRecordNumber"></span>
+                        <span class="text-[9px] px-1.5 py-0.5 rounded-full font-bold"
+                              :class="pat.Department === 'ICU' ? 'bg-purple-950 text-purple-400 border border-purple-900/30' : 'bg-cyan-950 text-cyan-400 border border-cyan-900/30'"
+                              x-text="pat.Department"></span>
+                      </div>
+                    </div>
+
+                    <!-- NEWS2 Score Pill -->
+                    <div class="flex items-center gap-1.5 bg-slate-950 border border-slate-800 rounded-xl p-2">
+                      <div class="text-right">
+                        <p class="text-[8px] text-slate-500 font-bold">NEWS2</p>
+                        <p class="text-xs font-extrabold text-slate-200" x-text="pat.NEWS2Score"></p>
+                      </div>
+                      <span class="w-2.5 h-2.5 rounded-full"
+                            :class="pat.NEWS2Score >= 7 ? 'bg-rose-500 shadow-[0_0_8px_#f43f5e]' : (pat.NEWS2Score >= 5 ? 'bg-yellow-500 shadow-[0_0_8px_#eab308]' : 'bg-emerald-500')">
+                      </span>
+                    </div>
+                  </div>
+
+                  <!-- Physiological indicators mini bar -->
+                  <div class="grid grid-cols-4 gap-1 py-2 border-t border-b border-slate-850/60 text-center font-mono text-[10px]">
+                    <div>
+                      <p class="text-[8px] text-slate-500">O2 Sat (SpO2)</p>
+                      <p class="font-bold text-slate-200" :class="pat.SpO2 < 92 ? 'text-rose-400' : 'text-slate-300'"><span x-text="pat.SpO2"></span>%</p>
+                    </div>
+                    <div>
+                      <p class="text-[8px] text-slate-500">Temp</p>
+                      <p class="font-bold text-slate-300"><span x-text="pat.Temperature"></span>°C</p>
+                    </div>
+                    <div>
+                      <p class="text-[8px] text-slate-500">BP</p>
+                      <p class="font-bold text-slate-300" x-text="pat.BP"></p>
+                    </div>
+                    <div>
+                      <p class="text-[8px] text-slate-500">Pulse (HR)</p>
+                      <p class="font-bold text-slate-300" x-text="pat.HR"></p>
+                    </div>
+                  </div>
+
+                  <!-- Symptoms preview -->
+                  <div>
+                    <p class="text-[10px] text-slate-400 line-clamp-1">
+                      <span class="font-bold text-slate-300" x-text="lang === 'ar' ? 'الأعراض:' : 'Symptoms:'"></span>
+                      <span x-text="pat.Symptoms"></span>
+                    </p>
+                  </div>
+
+                  <!-- Quick Action Button -->
+                  <div class="flex justify-between items-center text-[10px] text-slate-500 pt-1 border-t border-slate-850/40">
+                    <span x-text="lang === 'ar' ? 'عرض السجل والخط الزمني الكامل' : 'Click to explore medical record'"></span>
+                    <i data-lucide="chevron-left" class="w-3.5 h-3.5 text-cyan-400"></i>
+                  </div>
+
+                </div>
+              </template>
+            </div>
+
+            <!-- DETAIL VIEW MODAL (Selected Patient) -->
+            <div x-show="selectedPatient !== null" class="fixed inset-0 bg-slate-950/80 backdrop-blur z-40 flex items-center justify-center p-4 overflow-y-auto" x-cloak>
+              <div class="w-full max-w-2xl bg-slate-900 border border-slate-800 rounded-3xl p-6 space-y-6 max-h-[90vh] overflow-y-auto shadow-2xl relative"
+                   @click.away="selectedPatient = null">
+                
+                <!-- Close Button -->
+                <button @click="selectedPatient = null" class="absolute left-4 top-4 w-8 h-8 rounded-full bg-slate-950 flex items-center justify-center border border-slate-800 hover:border-slate-700 transition-colors">
+                  <i data-lucide="x" class="w-4 h-4 text-slate-400"></i>
+                </button>
+
+                <!-- Patient Profile Header -->
+                <div class="flex justify-between items-start border-b border-slate-800/80 pb-4">
+                  <div class="space-y-1.5">
+                    <h3 class="text-base font-extrabold text-slate-100" x-text="selectedPatient?.Name"></h3>
+                    <div class="flex items-center gap-2 text-xs text-slate-400">
+                      <span class="font-mono text-[10px]" x-text="selectedPatient?.MedicalRecordNumber"></span>
+                      <span>•</span>
+                      <span x-text="lang === 'ar' ? `${selectedPatient?.Age} سنة` : `${selectedPatient?.Age} Years old`"></span>
+                      <span>•</span>
+                      <span x-text="selectedPatient?.Gender"></span>
+                    </div>
+                  </div>
+
+                  <div class="px-3 py-1 rounded-xl font-extrabold text-xs bg-rose-950/40 text-rose-400 border border-rose-900/40"
+                       x-text="lang === 'ar' ? `قيمة الإنذار المبكر: ${selectedPatient?.NEWS2Score}` : `NEWS2 Early Warning: ${selectedPatient?.NEWS2Score}`">
+                  </div>
+                </div>
+
+                <!-- Bio Vitals details -->
+                <div class="grid grid-cols-2 sm:grid-cols-4 gap-3 bg-slate-950 p-4 rounded-2xl border border-slate-850">
+                  <div class="text-center">
+                    <p class="text-[9px] text-slate-500 font-bold">RR (Breath Rate)</p>
+                    <p class="text-sm font-extrabold text-slate-200 mt-1"><span x-text="selectedPatient?.RR"></span> /min</p>
+                  </div>
+                  <div class="text-center">
+                    <p class="text-[9px] text-slate-500 font-bold">SpO2 (Oxygen)</p>
+                    <p class="text-sm font-extrabold text-cyan-400 mt-1"><span x-text="selectedPatient?.SpO2"></span>%</p>
+                  </div>
+                  <div class="text-center">
+                    <p class="text-[9px] text-slate-500 font-bold">BP (Blood Pressure)</p>
+                    <p class="text-sm font-extrabold text-slate-200 mt-1" x-text="selectedPatient?.BP"></p>
+                  </div>
+                  <div class="text-center">
+                    <p class="text-[9px] text-slate-500 font-bold">HR (Heart Rate)</p>
+                    <p class="text-sm font-extrabold text-slate-200 mt-1"><span x-text="selectedPatient?.HR"></span> bpm</p>
+                  </div>
+                </div>
+
+                <!-- Symptoms and Diagnosis -->
+                <div class="space-y-4">
+                  <div class="space-y-1">
+                    <p class="text-xs font-bold text-cyan-400" x-text="lang === 'ar' ? 'العرض السريري والشكوى:' : 'Clinical Presentation:'"></p>
+                    <p class="text-xs text-slate-300 bg-slate-950/40 border border-slate-850/60 p-3 rounded-xl leading-relaxed" x-text="selectedPatient?.Symptoms"></p>
+                  </div>
+
+                  <div class="space-y-1">
+                    <p class="text-xs font-bold text-cyan-400" x-text="lang === 'ar' ? 'التشخيص السريري المقترح:' : 'Clinical Impression:'"></p>
+                    <p class="text-xs text-slate-300 bg-slate-950/40 border border-slate-850/60 p-3 rounded-xl leading-relaxed" x-text="selectedPatient?.Diagnosis"></p>
+                  </div>
+                </div>
+
+                <!-- AI REPORT INTERACTIVE INTERPRETATION -->
+                <div class="bg-cyan-950/20 border border-cyan-850 p-4 rounded-2xl space-y-2">
+                  <h4 class="text-xs font-extrabold text-cyan-400 flex items-center gap-1.5">
+                    <i data-lucide="bot" class="w-4 h-4"></i>
+                    <span x-text="lang === 'ar' ? 'تقرير دعم القرار الطبي للذكاء الاصطناعي:' : 'Clinical AI Report:'"></span>
+                  </h4>
+                  <p class="text-[11px] text-slate-300 leading-relaxed whitespace-pre-line font-sans" x-text="selectedPatient?.AIReport"></p>
+                </div>
+
+                <!-- Timeline of events -->
+                <div class="space-y-3">
+                  <h4 class="text-xs font-bold text-slate-200" x-text="lang === 'ar' ? 'الخط الزمني للحالة والعلاجات المقررة' : 'Clinical Journey / Diagnostic Timeline'"></h4>
+                  <div class="space-y-3 border-l border-slate-800 pr-4">
+                    <template x-for="tl in selectedPatient?.timeline">
+                      <div class="relative pb-1">
+                        <span class="absolute right-[-21px] top-1.5 w-2 h-2 rounded-full bg-cyan-500 shadow-[0_0_6px_#06b6d4]"></span>
+                        <div class="space-y-1 bg-slate-950/40 border border-slate-850 p-3 rounded-xl">
+                          <div class="flex justify-between items-center text-[10px]">
+                            <span class="font-bold text-slate-200" x-text="tl.title"></span>
+                            <span class="text-slate-500 font-mono" x-text="tl.date"></span>
+                          </div>
+                          <p class="text-[10px] text-slate-400 leading-normal" x-text="tl.description"></p>
+                          <p class="text-[9px] text-cyan-500 font-bold" x-text="tl.clinician"></p>
+                        </div>
+                      </div>
+                    </template>
+                  </div>
+                </div>
+
+                <!-- Save/PDF Actions -->
+                <div class="pt-4 border-t border-slate-800 flex justify-end gap-2">
+                  <button @click="selectedPatient = null" class="px-4 py-2 rounded-xl bg-slate-950 hover:bg-slate-850 text-slate-300 text-xs font-bold transition-all" x-text="lang === 'ar' ? 'إغلاق الملف' : 'Close Profile'"></button>
+                </div>
+
+              </div>
+            </div>
+
+          </div>
+
+          <!-- TAB 3: INTAKE VITAL SIGNS FORM -->
+          <div x-show="currentTab === 'ADD_PATIENT'" class="space-y-6" x-cloak>
+            
+            <div class="grid grid-cols-1 lg:grid-cols-3 gap-6">
+              
+              <!-- Form Intake Left Side -->
+              <div class="lg:col-span-2 bg-slate-900 border border-slate-850 rounded-2xl p-5 space-y-6">
+                <h3 class="text-sm font-extrabold text-slate-100 flex items-center gap-2">
+                  <i data-lucide="user-plus" class="w-4 h-4 text-cyan-400"></i>
+                  <span x-text="lang === 'ar' ? 'إدخال مريض جديد وتقييم العلامات الحيوية الـ 7' : 'Intake Physiological 7 Vitals'"></span>
+                </h3>
+
+                <form @submit.prevent="submitPatientForm()" class="space-y-4">
+                  <div class="grid grid-cols-1 sm:grid-cols-2 gap-4">
+                    <!-- Name -->
+                    <div>
+                      <label class="text-[10.5px] font-bold text-slate-400 block mb-1" x-text="lang === 'ar' ? 'اسم المريض بالكامل' : 'Patient Full Name'"></label>
+                      <input type="text" x-model="intakeForm.Name" required 
+                             class="w-full bg-slate-950 border border-slate-850 rounded-xl px-3 py-2 text-xs text-slate-200 focus:border-cyan-500 outline-none" />
+                    </div>
+
+                    <!-- Age & Gender -->
+                    <div class="grid grid-cols-2 gap-2">
+                      <div>
+                        <label class="text-[10.5px] font-bold text-slate-400 block mb-1" x-text="lang === 'ar' ? 'العمر' : 'Age'"></label>
+                        <input type="number" x-model="intakeForm.Age" required 
+                               class="w-full bg-slate-950 border border-slate-850 rounded-xl px-3 py-2 text-xs text-slate-200 focus:border-cyan-500 outline-none" />
+                      </div>
+                      <div>
+                        <label class="text-[10.5px] font-bold text-slate-400 block mb-1" x-text="lang === 'ar' ? 'الجنس' : 'Gender'"></label>
+                        <select x-model="intakeForm.Gender" class="w-full bg-slate-950 border border-slate-850 rounded-xl px-3 py-2 text-xs text-slate-200 focus:border-cyan-500 outline-none">
+                          <option value="Male">Male / ذكر</option>
+                          <option value="Female">Female / أنثى</option>
+                        </select>
+                      </div>
+                    </div>
+                  </div>
+
+                  <div class="grid grid-cols-1 sm:grid-cols-2 gap-4">
+                    <!-- Department -->
+                    <div>
+                      <label class="text-[10.5px] font-bold text-slate-400 block mb-1" x-text="lang === 'ar' ? 'القسم الطبي للمريض' : 'Admitting Department'"></label>
+                      <select x-model="intakeForm.Department" class="w-full bg-slate-950 border border-slate-850 rounded-xl px-3 py-2 text-xs text-slate-200 focus:border-cyan-500 outline-none">
+                        <option value="Emergency">Emergency / الطوارئ</option>
+                        <option value="ICU">ICU / العناية المركزة</option>
+                        <option value="Cardiology">Cardiology / القلب</option>
+                        <option value="Internal Medicine">Internal Medicine / الباطنية</option>
+                      </select>
+                    </div>
+
+                    <!-- Symptoms -->
+                    <div>
+                      <label class="text-[10.5px] font-bold text-slate-400 block mb-1" x-text="lang === 'ar' ? 'العرض الأساسي والشكوى' : 'Primary Complaint'"></label>
+                      <input type="text" x-model="intakeForm.Symptoms" required 
+                             class="w-full bg-slate-950 border border-slate-850 rounded-xl px-3 py-2 text-xs text-slate-200 focus:border-cyan-500 outline-none" />
+                    </div>
+                  </div>
+
+                  <!-- Physiological Parameters Grid (7 core markers for NEWS2) -->
+                  <div class="bg-slate-950 p-4 rounded-2xl border border-slate-850 space-y-4">
+                    <p class="text-[11px] font-extrabold text-cyan-400 flex items-center gap-1.5 border-b border-slate-850 pb-2">
+                      <i data-lucide="activity" class="w-4 h-4"></i>
+                      <span x-text="lang === 'ar' ? 'القياسات الفسيولوجية السريرية للإنذار المبكر:' : 'Physiological Parameters (7 NEWS2 Pillars):'"></span>
+                    </p>
+
+                    <div class="grid grid-cols-1 sm:grid-cols-3 gap-4">
+                      <!-- Respiration Rate -->
+                      <div>
+                        <label class="text-[9.5px] font-bold text-slate-400 block mb-1">1. Respiration Rate (RR / التنفس)</label>
+                        <input type="number" x-model="intakeForm.RR" @input="recalculateNEWS2()" required 
+                               placeholder="e.g. 16"
+                               class="w-full bg-slate-900 border border-slate-800 rounded-xl px-3 py-2 text-xs text-slate-200 outline-none" />
+                        <span class="text-[8.5px] text-slate-500">Normal range: 12-20</span>
+                      </div>
+
+                      <!-- SpO2 -->
+                      <div>
+                        <label class="text-[9.5px] font-bold text-slate-400 block mb-1">2. Oxygen Saturation (SpO2 / الأكسجين)</label>
+                        <input type="number" x-model="intakeForm.SpO2" @input="recalculateNEWS2()" required 
+                               placeholder="e.g. 98"
+                               class="w-full bg-slate-900 border border-slate-800 rounded-xl px-3 py-2 text-xs text-slate-200 outline-none" />
+                        <span class="text-[8.5px] text-slate-500">Normal range: ≥96%</span>
+                      </div>
+
+                      <!-- Oxygen supplementation -->
+                      <div>
+                        <label class="text-[9.5px] font-bold text-slate-400 block mb-1">3. Air or Oxygen Supplement</label>
+                        <select x-model="intakeForm.OnOxygen" @change="recalculateNEWS2()" class="w-full bg-slate-900 border border-slate-800 rounded-xl px-3 py-2 text-xs text-slate-200 outline-none">
+                          <option value="false">Air (هواء الغرفة الطبيعي)</option>
+                          <option value="true">Oxygen therapy (علاج بالأكسجين)</option>
+                        </select>
+                        <span class="text-[8.5px] text-slate-500">Adds 2 score points if on oxygen</span>
+                      </div>
+                    </div>
+
+                    <div class="grid grid-cols-1 sm:grid-cols-4 gap-4">
+                      <!-- Systolic BP -->
+                      <div>
+                        <label class="text-[9.5px] font-bold text-slate-400 block mb-1">4. Systolic BP (الضغط الانقباضي)</label>
+                        <input type="number" x-model="intakeForm.BP" @input="recalculateNEWS2()" required 
+                               placeholder="e.g. 120"
+                               class="w-full bg-slate-900 border border-slate-800 rounded-xl px-3 py-2 text-xs text-slate-200 outline-none" />
+                        <span class="text-[8.5px] text-slate-500">Normal: 111-219 mmHg</span>
+                      </div>
+
+                      <!-- Heart Rate -->
+                      <div>
+                        <label class="text-[9.5px] font-bold text-slate-400 block mb-1">5. Heart Rate (HR / النبض)</label>
+                        <input type="number" x-model="intakeForm.HR" @input="recalculateNEWS2()" required 
+                               placeholder="e.g. 75"
+                               class="w-full bg-slate-900 border border-slate-800 rounded-xl px-3 py-2 text-xs text-slate-200 outline-none" />
+                        <span class="text-[8.5px] text-slate-500">Normal range: 51-90 bpm</span>
+                      </div>
+
+                      <!-- Temperature -->
+                      <div>
+                        <label class="text-[9.5px] font-bold text-slate-400 block mb-1">6. Temp (درجة الحرارة)</label>
+                        <input type="number" step="0.1" x-model="intakeForm.Temperature" @input="recalculateNEWS2()" required 
+                               placeholder="e.g. 37.0"
+                               class="w-full bg-slate-900 border border-slate-800 rounded-xl px-3 py-2 text-xs text-slate-200 outline-none" />
+                        <span class="text-[8.5px] text-slate-500">Normal: 36.1-38.0 °C</span>
+                      </div>
+
+                      <!-- Consciousness Level -->
+                      <div>
+                        <label class="text-[9.5px] font-bold text-slate-400 block mb-1">7. GCS (Consciousness / الوعي)</label>
+                        <select x-model="intakeForm.GCS" @change="recalculateNEWS2()" class="w-full bg-slate-900 border border-slate-800 rounded-xl px-3 py-2 text-xs text-slate-200 outline-none">
+                          <option value="A">Alert (يقظ واعي بالكامل)</option>
+                          <option value="C">Confused (مشوش الوعي)</option>
+                          <option value="V">Voice (يستجيب للمناداة الصوتية)</option>
+                          <option value="P">Pain (يستجيب للألم فقط)</option>
+                          <option value="U">Unresponsive (فاقد للوعي تماماً)</option>
+                        </select>
+                        <span class="text-[8.5px] text-slate-500">Non-Alert adds 3 score points</span>
+                      </div>
+                    </div>
+                  </div>
+
+                  <div>
+                    <button type="submit" class="w-full py-2.5 bg-cyan-600 hover:bg-cyan-500 text-white rounded-xl text-xs font-bold cursor-pointer transition-colors shadow-lg">
+                      <span x-text="lang === 'ar' ? 'حفظ سجل المريض الجديد وتوليد التقرير السريري بالذكاء الاصطناعي' : 'Save Patient & Generate AI Clinical Analysis Report'"></span>
+                    </button>
+                  </div>
+                </form>
+              </div>
+
+              <!-- Real-time Intake Right Side Indicator -->
+              <div class="space-y-6">
+                <!-- Live NEWS2 Evaluator gauge -->
+                <div class="bg-slate-900 border border-slate-850 rounded-2xl p-5 space-y-4">
+                  <h3 class="text-xs font-extrabold text-slate-100 uppercase tracking-wider" x-text="lang === 'ar' ? 'مؤشر التقييم الفوري للعلامات' : 'Intake Early Warning Status'"></h3>
+                  
+                  <div class="flex flex-col items-center py-6 text-center space-y-4">
+                    <div class="w-24 h-24 rounded-full flex flex-col items-center justify-center border-4 relative"
+                         :class="liveNews2Score >= 7 ? 'border-rose-500 bg-rose-950/20' : (liveNews2Score >= 5 ? 'border-yellow-500 bg-yellow-950/20' : 'border-emerald-500 bg-emerald-950/20')">
+                      <span class="text-[9px] text-slate-400 font-bold">NEWS2 SCORE</span>
+                      <span class="text-3xl font-extrabold" 
+                            :class="liveNews2Score >= 7 ? 'text-rose-400' : (liveNews2Score >= 5 ? 'text-yellow-400' : 'text-emerald-400')"
+                            x-text="liveNews2Score"></span>
+                    </div>
+
+                    <div class="space-y-1">
+                      <span class="px-3 py-1 rounded-full text-[9px] font-bold"
+                            :class="liveNews2Score >= 7 ? 'bg-rose-950 text-rose-400 border border-rose-900/40' : (liveNews2Score >= 5 ? 'bg-yellow-950 text-yellow-400 border border-yellow-900/40' : 'bg-emerald-950 text-emerald-400 border border-emerald-900/40')"
+                            x-text="liveNews2Score >= 7 ? (lang === 'ar' ? '🔴 خطورة مرتفعة للغاية' : '🔴 CRITICAL RISK') : (liveNews2Score >= 5 ? (lang === 'ar' ? '🟡 خطورة متوسطة' : '🟡 MEDIUM RISK') : (lang === 'ar' ? '🟢 خطورة منخفضة' : '🟢 LOW RISK'))">
+                      </span>
+                      <p class="text-[10px] text-slate-400 pt-2 px-4 leading-normal"
+                         x-text="liveNews2Score >= 7 ? (lang === 'ar' ? 'بروتوكول المستشفى: نقل عاجل لوحدة العناية المركزة ICU واستدعاء طاقم التدخل الفوري.' : 'Hospital Directive: Immediate emergency response activation & transfer to ICU.') : (liveNews2Score >= 5 ? (lang === 'ar' ? 'بروتوكول المستشفى: إعادة التقييم خلال ساعة واحدة وإعلام الطبيب المعالج.' : 'Hospital Directive: Re-evaluate physiological vitals within 1 hour.') : (lang === 'ar' ? 'بروتوكول المستشفى: القياسات مستقرة وضمن الحدود المألوفة.' : 'Hospital Directive: Normal clinical monitoring standard procedure.'))">
+                      </p>
+                    </div>
+                  </div>
+                </div>
+              </div>
+
+            </div>
+
+          </div>
+
+          <!-- TAB 4: CLINICAL AI ASSISTANT -->
+          <div x-show="currentTab === 'AI_COACH'" class="space-y-6" x-cloak>
+            <div class="bg-slate-900 border border-slate-850 rounded-2xl p-5 space-y-4">
+              <div class="flex items-center gap-2">
+                <div class="w-9 h-9 rounded-xl bg-cyan-600/20 border border-cyan-500/20 flex items-center justify-center text-cyan-400 animate-pulse">
+                  <i data-lucide="bot" class="w-5 h-5"></i>
+                </div>
+                <div>
+                  <h3 class="text-sm font-extrabold text-slate-100" x-text="lang === 'ar' ? 'بوابة دعم القرار السريري للذكاء الاصطناعي التفاعلية' : 'AI Clinical Decision Interactive Portal'"></h3>
+                  <p class="text-[10px] text-slate-400" x-text="lang === 'ar' ? 'محرك ذكي لتحليل الأعراض، قراءة تقارير الأشعة والتحاليل الحيوية' : 'Smart reasoning engine for complex cases, vital analysis and diagnostic recommendations'"></p>
+                </div>
+              </div>
+
+              <!-- Form query -->
+              <div class="space-y-4 pt-2">
+                <div>
+                  <label class="text-xs font-bold text-slate-300 block mb-1.5" x-text="lang === 'ar' ? 'اطرح استفساراً طبياً تفصيلياً أو لخص حالة المريض المعقدة:' : 'Input clinical signs, symptoms, or diagnostic reports for AI analysis:'"></label>
+                  <textarea x-model="aiQuery" rows="5" 
+                            :placeholder="lang === 'ar' ? 'أدخل الأعراض والعلامات الحيوية هنا... مثلاً: مريض يبلغ من العمر 65 عاماً يعاني من ضيق تنفس حاد وصدمة حيوية، نبضه 110 وضغطه 90/60، ألم بالصدر... ما هو التقييم السريري السريع وأقرب المقاربات؟' : 'Describe the case here... e.g., A 65-year-old patient with severe acute dyspnea, HR 112 bpm, BP 98/60 mmHg, SpO2 89% on air. Suspected pleural effusion. Provide differential diagnostic advice.'"
+                            class="w-full bg-slate-950 border border-slate-850 rounded-2xl p-4 text-xs text-slate-200 outline-none focus:border-cyan-500 leading-relaxed font-sans"></textarea>
+                </div>
+
+                <!-- Run AI Analysis -->
+                <div class="flex justify-end gap-2">
+                  <button @click="triggerAIQuery()" 
+                          class="px-5 py-2.5 bg-cyan-600 hover:bg-cyan-500 text-white rounded-xl text-xs font-bold transition-all cursor-pointer flex items-center gap-2 shadow-lg"
+                          :disabled="isGeneratingAI">
+                    <span x-show="isGeneratingAI" class="w-3.5 h-3.5 border-2 border-white/30 border-t-white rounded-full animate-spin"></span>
+                    <i x-show="!isGeneratingAI" data-lucide="sparkles" class="w-4 h-4"></i>
+                    <span x-text="isGeneratingAI ? (lang === 'ar' ? 'جاري التحليل السريري المتقدم...' : 'Generating clinical report...') : (lang === 'ar' ? 'توليد التحليل ودعم القرار الطبي فورا' : 'Generate Decision Support Report')"></span>
+                  </button>
+                </div>
+              </div>
+
+              <!-- AI Output Presentation -->
+              <div x-show="aiResult !== ''" class="bg-slate-950 border border-slate-850 rounded-2xl p-5 space-y-3" x-cloak>
+                <div class="flex justify-between items-center border-b border-slate-900 pb-2">
+                  <h4 class="text-xs font-extrabold text-cyan-400 flex items-center gap-1.5">
+                    <i data-lucide="sparkles" class="w-4 h-4"></i>
+                    <span x-text="lang === 'ar' ? 'التقرير السريري التفسيري الصادر' : 'Generated Clinical Interpretation'"></span >
+                  </h4>
+                  <span class="inline-flex items-center gap-1 px-2 py-0.5 rounded-full text-[8.5px] font-bold bg-cyan-950 text-cyan-400 border border-cyan-500/30">
+                    <span class="w-1.5 h-1.5 bg-cyan-400 rounded-full animate-ping"></span>
+                    VERIFIED ENGINE
+                  </span>
+                </div>
+                <p class="text-xs text-slate-300 leading-relaxed whitespace-pre-line font-sans" x-text="aiResult"></p>
+                <div class="pt-3 text-[9px] text-slate-500 border-t border-slate-900 leading-normal" x-text="lang === 'ar' ? '⚠️ تنبيه: الذكاء الاصطناعي هو أداة استشارية فنية لدعم القرار الطبي فقط وليس بديلاً عن التقييم السريري المباشر للطبيب المرخص.' : '⚠️ Alert: AI support report is an educational clinical aid tool, final treatment decisions must be vetted by authorized clinicians.'">
+                </div>
+              </div>
+            </div>
+          </div>
+
+          <!-- TAB 5: SETTINGS / WEBAUTHN DEVICE MANAGEMENT -->
+          <div x-show="currentTab === 'SETTINGS'" class="space-y-6" x-cloak>
+            <div class="bg-slate-900 border border-slate-850 rounded-2xl p-5 space-y-6">
+              
+              <div class="border-b border-slate-850 pb-4">
+                <h3 class="text-sm font-extrabold text-slate-100 flex items-center gap-2">
+                  <i data-lucide="settings" class="w-4.5 h-4.5 text-cyan-400"></i>
+                  <span x-text="lang === 'ar' ? 'إعدادات الحماية المتقدمة والقياسات البيومترية' : 'Advanced Workspace Security & Device Biometrics'"></span>
+                </h3>
+                <p class="text-[10px] text-slate-400 mt-1" x-text="lang === 'ar' ? 'قم بتسجيل وتعديل بصمة الإصبع الحيوية للجهاز (WebAuthn) للمصادقة في الجلسات القادمة دون الحاجة لكتابة الرمز.' : 'Enroll and register native hardware device biometrics (fingerprint/FaceID) to replace PIN authentication in future sessions.'"></p>
+              </div>
+
+              <!-- WebAuthn Enrollment Status Widget -->
+              <div class="grid grid-cols-1 md:grid-cols-2 gap-6">
+                <!-- Status & Action Card -->
+                <div class="bg-slate-950 p-5 rounded-2xl border border-slate-850 space-y-4">
+                  <h4 class="text-xs font-bold text-slate-200" x-text="lang === 'ar' ? 'تسجيل بصمة جهازك الحالي (WebAuthn / Biometrics)' : 'Enroll Device Hardware Biometrics'"></h4>
+                  
+                  <p class="text-[11px] text-slate-400 leading-relaxed font-sans" x-text="lang === 'ar' ? 'تقنية WebAuthn هي المعيار العالمي المشفر الأكثر أماناً للمصادقة عبر أجهزة الهاتف الذكية والكمبيوتر الشخصي. يتم حفظ المفتاح المشفر داخل شريحة الأمان المؤمنة بجهازك (Secure Enclave) ولا تتم مشاركتها إطلاقاً مع أي خوادم خارجية.' : 'WebAuthn is the leading global secure authentication standard. Cryptographic credentials are generated and securely stored inside your device hardware Security Chip (TPM/Secure Enclave) and never shared with external servers.'">
+                  </p>
+
+                  <div class="space-y-2 pt-2">
+                    <!-- Status indicator -->
+                    <div class="flex items-center gap-2">
+                      <span class="w-2.5 h-2.5 rounded-full" :class="hasWebAuthnCreds ? 'bg-emerald-500 shadow-[0_0_8px_#10b981]' : 'bg-slate-700'"></span>
+                      <span class="text-xs font-bold" x-text="hasWebAuthnCreds ? (lang === 'ar' ? 'البصمة مسجلة ونشطة على هذا الجهاز' : 'WebAuthn registered and active') : (lang === 'ar' ? 'لم يتم تسجيل بصمة لهذا الجهاز بعد' : 'No WebAuthn credentials active yet')"></span>
+                    </div>
+                  </div>
+
+                  <div class="flex flex-col sm:flex-row gap-2 pt-2">
+                    <!-- Register Native Biometrics Button -->
+                    <button @click="enrollNativeWebAuthn()" 
+                            class="flex-1 py-2 bg-cyan-600 hover:bg-cyan-500 text-white rounded-xl text-xs font-bold cursor-pointer transition-colors flex items-center justify-center gap-1.5 shadow-lg">
+                      <i data-lucide="fingerprint" class="w-4 h-4"></i>
+                      <span x-text="lang === 'ar' ? 'تسجيل بصمة الجهاز الحقيقية' : 'Enroll Native Biometrics'"></span>
+                    </button>
+
+                    <!-- Clear Credentials Button -->
+                    <button @click="clearWebAuthnCreds()" x-show="hasWebAuthnCreds"
+                            class="px-3 py-2 bg-slate-900 border border-slate-800 hover:bg-rose-950/30 hover:border-rose-900/40 text-slate-400 hover:text-rose-400 rounded-xl text-xs font-bold cursor-pointer transition-all flex items-center justify-center gap-1.5" x-cloak>
+                      <i data-lucide="trash-2" class="w-4 h-4"></i>
+                      <span x-text="lang === 'ar' ? 'إزالة البصمة' : 'Remove'"></span>
+                    </button>
+                  </div>
+                </div>
+
+                <!-- Simulation Info & Diagnostics -->
+                <div class="bg-slate-950 p-5 rounded-2xl border border-slate-850 space-y-4 flex flex-col justify-between">
+                  <div class="space-y-2">
+                    <h4 class="text-xs font-bold text-slate-200" x-text="lang === 'ar' ? 'بيئة تشغيل الأجهزة المشفرة ومحاكاة المتصفح' : 'Diagnostics & High-Fidelity Simulation'"></h4>
+                    <p class="text-[11px] text-slate-400 leading-relaxed font-sans" x-text="lang === 'ar' ? 'نظرًا لأن بعض أنظمة المتصفحات تقيد ميزة WebAuthn الحقيقية عندما يتم تشغيل التطبيق داخل بيئات تجريبية أو أطر (Iframe)، فقد قمنا بتجهيز المنصة بمحاكي فائق الجودة يتبع نفس الهيكل الأمني والمصادقة التماثلية لضمان عمل البصمة بكفاءة تامة في جميع الظروف.' : 'Since some browsers restrict hardware WebAuthn inside sandbox containers/iframes, we integrated a high-fidelity virtual secure enclave simulator. This ensures biometric scanning, progress, and cryptographic keys work seamlessly everywhere.'">
+                    </p>
+                  </div>
+
+                  <div class="pt-2">
+                    <button @click="enrollSimulatedWebAuthn()" 
+                            class="w-full py-2 bg-slate-900 hover:bg-slate-800 text-slate-300 border border-slate-850 rounded-xl text-xs font-bold cursor-pointer transition-colors flex items-center justify-center gap-1.5">
+                      <i data-lucide="cpu" class="w-4 h-4 text-cyan-400"></i>
+                      <span x-text="lang === 'ar' ? 'تفعيل محاكي البصمة المشفر الموحد' : 'Activate Virtual Enclave Biometrics'"></span>
+                    </button>
+                  </div>
+                </div>
+              </div>
+
+              <!-- EXPORT OPTIONS AND ZIP GENERATION FOR OFFLINE AND NATIVE APK BUILDS -->
+              <div class="border-t border-slate-850 pt-5 mt-5 space-y-4">
+                <div class="flex items-center gap-2 text-cyan-400 font-bold text-xs">
+                  <i data-lucide="download" class="w-4.5 h-4.5"></i>
+                  <span x-text="lang === 'ar' ? 'تنزيل وتصدير كود المنصة بالكامل (ZIP/HTML)' : 'Download & Export Complete Workspace'"></span>
+                </div>
+                <p class="text-[11px] text-slate-400 leading-relaxed font-sans" x-text="lang === 'ar' ? 'احصل على الكود بالكامل مضغوطاً بصيغة ZIP يحتوي على جميع الملفات والمصدر لتشغيل المشروع محلياً، أو قم بتحميل ملف ويب الموحد (Single HTML File) لتشغيل المنصة مباشرة بمجرد النقر المزدوج على أي جهاز حاسوب أو هاتف محمول دون الحاجة لأي خوادم.' : 'Download the entire workspace zipped with all source files to run locally, or trigger an instant single index.html file download that encapsulates all assets, styles and interactive logic. Run it locally by simply double clicking on any desktop.'">
+                </p>
+
+                <div class="grid grid-cols-1 sm:grid-cols-2 gap-3">
+                  <!-- Unified HTML Download button -->
+                  <a href="/api/download-single-html" download="nabd_platform.html"
+                     class="flex items-center justify-center gap-2 py-3 bg-emerald-600 hover:bg-emerald-500 text-white rounded-xl text-xs font-bold cursor-pointer transition-colors shadow-lg border border-emerald-500/20">
+                    <i data-lucide="file-text" class="w-4 h-4"></i>
+                    <span x-text="lang === 'ar' ? 'تحميل ملف ويب الموحد (Index.html)' : 'Download Single HTML File'"></span>
+                  </a>
+
+                  <!-- ZIP Download button -->
+                  <a href="/api/download-zip" download="nabd-smartcare-project.zip"
+                     class="flex items-center justify-center gap-2 py-3 bg-cyan-600 hover:bg-cyan-500 text-white rounded-xl text-xs font-bold cursor-pointer transition-colors shadow-lg border border-cyan-500/20">
+                    <i data-lucide="archive" class="w-4 h-4"></i>
+                    <span x-text="lang === 'ar' ? 'تحميل المشروع بالكامل (ZIP)' : 'Download Complete Project (ZIP)'"></span>
+                  </a>
+                </div>
+              </div>
+
+            </div>
+          </div>
+
+        </div>
+
+      </main>
+
+    </div>
+  </template>
+
+  <script>
+    // Comprehensive Initial Mock Patients Database
+    const INITIAL_PATIENTS = [
+      {
+        id: "pat-101",
+        MedicalRecordNumber: "MRN-2026-0012",
+        Name: "أحمد عبدالله محمد",
+        Age: 62,
+        Gender: "Male",
+        Department: "Emergency",
+        Symptoms: "ضيق حاد في التنفس، آلام في الصدر تزداد مع الشهيق، سعال جاف مستمر منذ يومين.",
+        Diagnosis: "اشتباه انصباب جنبي أو التهاب رئوي حاد مع قصور تن
