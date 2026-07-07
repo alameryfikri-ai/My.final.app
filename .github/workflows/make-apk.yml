@@ -1,0 +1,47 @@
+name: Generate Android APK
+on: [push, workflow_dispatch]
+
+jobs:
+  build_apk:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout Source Code
+        uses: actions/checkout@v4
+
+      - name: Configure Node.js Environment
+        uses: actions/setup-node@v4
+        with:
+          node-version: '22'
+
+      - name: Global Cordova Installation
+        run: npm install -g cordova
+
+      - name: Initialize Android Project
+        run: |
+          cordova create my-android-app com.example.myapp "AIApp"
+          rm -rf my-android-app/www/*
+          cp index.html my-android-app/www/index.html
+          cd my-android-app
+          cordova platform add android@12.0.0 --no-telemetry
+
+      - name: Optimize Network Settings
+        run: |
+          sed -i 's|<preference name="hostname" value="localhost" />|<preference name="hostname" value="" />|g' my-android-app/config.xml || true
+          sed -i 's|<content src="index.html" />|<content src="index.html" />\n    <preference name="AndroidInsecureFileModeEnabled" value="true" />|g' my-android-app/config.xml
+
+      - name: Configure Java Environment
+        uses: actions/setup-java@v4
+        with:
+          distribution: 'zulu'
+          java-version: '17'
+
+      - name: Execute Android Compile
+        run: |
+          cd my-android-app
+          cordova build android --no-telemetry --device
+
+      - name: Distribute APK Artifact
+        uses: actions/upload-artifact@v4
+        with:
+          name: my-android-apk
+          path: my-android-app/platforms/android/app/build/outputs/apk/debug/app-debug.apk
